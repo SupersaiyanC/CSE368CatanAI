@@ -1,26 +1,45 @@
 class Player:
     def __init__(self, player_id):
         self.id = player_id
-        self.resources = {"wood": 0, "brick": 0, "sheep": 0, "wheat": 0, "ore": 0}
+        self.resources = {
+            "wood": 0,
+            "brick": 0,
+            "sheep": 0,
+            "wheat": 0,
+            "ore": 0
+        }
         self.settlements = []
         self.cities = []
         self.roads = []
         self.victory_points = 0
 
     def can_build_settlement(self):
-        return all(self.resources[r] >= 1 for r in ["wood", "brick", "sheep", "wheat"])
+        can = (self.resources["wood"] >= 1 and 
+               self.resources["brick"] >= 1 and 
+               self.resources["sheep"] >= 1 and 
+               self.resources["wheat"] >= 1)
+        return can
 
     def build_settlement(self, location):
+        # Check again
         if self.can_build_settlement():
-            for r in ["wood", "brick", "sheep", "wheat"]:
-                self.resources[r] -= 1
+            # Deduct resources
+            self.resources["wood"] -= 1
+            self.resources["brick"] -= 1
+            self.resources["sheep"] -= 1
+            self.resources["wheat"] -= 1
             self.settlements.append(location)
             self.victory_points += 1
             return True
         return False
 
     def can_build_city(self):
-        return len(self.settlements) > 0 and self.resources["wheat"] >= 2 and self.resources["ore"] >= 3
+        # Need a settlement to upgrade
+        if len(self.settlements) == 0:
+            return False
+        can = (self.resources["wheat"] >= 2 and self.resources["ore"] >= 3)
+
+        return can
 
     def build_city(self, location):
         if self.can_build_city() and location in self.settlements:
@@ -28,12 +47,15 @@ class Player:
             self.resources["ore"] -= 3
             self.settlements.remove(location)
             self.cities.append(location)
-            self.victory_points += 1
+            self.victory_points += 2  # city is worth 2 VPs total (1 more than a settlement)
             return True
         return False
 
     def can_build_road(self):
-        return all(self.resources[r] >= 1 for r in ["wood", "brick"])
+        # road costs: 1 wood, 1 brick
+        can = (self.resources["wood"] >= 1 and self.resources["brick"] >= 1)
+
+        return can
 
     def build_road(self, path_id):
         if self.can_build_road():

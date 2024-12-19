@@ -1,5 +1,5 @@
 from q_learning import QLearning
-
+import random
 class AIAgent:
     def __init__(self, player, action_space=["build_settlement","build_city","build_road","trade","end_turn"]):
         self.player = player
@@ -14,36 +14,43 @@ class AIAgent:
         self.last_state = None
         self.last_action = None
         
-        self.episode_count = 0
         self.episode_reward = 0.0
-        self.rewards_history = []
+        self.rewards_history = []  # store total reward per episode
 
     def start_new_episode(self):
-        self.episode_count += 1
+        """Call this at the start of each episode."""
         self.episode_reward = 0.0
         self.last_state = None
         self.last_action = None
 
-    def end_episode(self):
+    def end_episode(self, episode_number, total_episodes):
+        """Call this at the end of each episode to log progress."""
         self.rewards_history.append(self.episode_reward)
-        avg_reward = sum(self.rewards_history[-10:]) / min(len(self.rewards_history), 10)
-        print(f"==== End of Episode {self.episode_count} ====")
+        
+        # Compute some statistics
+        avg_reward_last_10 = sum(self.rewards_history[-10:]) / min(len(self.rewards_history), 10)
+        
+        print(f"==== End of Episode {episode_number} ====")
         print(f"Total Reward this episode: {self.episode_reward:.2f}")
-        print(f"Average Reward (last 10 eps): {avg_reward:.2f}")
+        print(f"Average Reward (last 10 eps): {avg_reward_last_10:.2f}")
         print(f"Current Epsilon: {self.q_learner.epsilon:.2f}")
         print(f"Final VP of Player {self.player.id}: {self.player.victory_points}")
         print("==========================================")
 
+        # Performance metric comparing early vs later episodes
+        # Only do this if we have at least 20 episodes recorded as a demonstration
+        if len(self.rewards_history) >= 20:
+            half = len(self.rewards_history) // 2
+            early_avg = sum(self.rewards_history[:half]) / half
+            late_avg = sum(self.rewards_history[half:]) / (len(self.rewards_history) - half)
+            print(f"Early vs Later performance for Player {self.player.id}:")
+            print(f" - Early episodes avg reward: {early_avg:.2f}")
+            print(f" - Later episodes avg reward: {late_avg:.2f}")
+            print("==========================================")
+
     def get_state(self):
         r = self.player.resources
-        return (
-            min(r["wood"] // 5, 3),
-            min(r["brick"] // 5, 3),
-            min(r["sheep"] // 5, 3),
-            min(r["wheat"] // 5, 3),
-            min(r["ore"] // 5, 3),
-            self.player.victory_points,
-        )
+        return (r["wood"], r["brick"], r["sheep"], r["wheat"], r["ore"], self.player.victory_points)
 
     def choose_action(self):
         state = self.get_state()
@@ -53,9 +60,11 @@ class AIAgent:
         return action
 
     def update_q_values(self, reward):
-        current_state = self.get_state()
-        next_actions = self.actions
-        self.q_learner.update(self.last_state, self.last_action, reward, current_state, next_actions)
+        if self.last_state is not None and self.last_action is not None:
+            current_state = self.get_state()
+            next_actions = self.actions
+            self.q_learner.update(self.last_state, self.last_action, reward, current_state, next_actions)
+        # Add reward to episode total to monitor improvement
         self.episode_reward += reward
 
     def have_settlement_resources(self):
@@ -137,9 +146,3 @@ class AIAgent:
 
         elif action == "end_turn":
             return ("end_turn", -0.1)
-
-    def save_q_values(self, filename):
-        self.q_learner.save(filename)
-
-    def load_q_values(self, filename):
-        self.q_learner.load(filename)
